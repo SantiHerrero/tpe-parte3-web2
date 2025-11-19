@@ -1,0 +1,10 @@
+RewriteEngine On
+
+RewriteBase /tpe-parte3-web2
+
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+
+RewriteRule ^(.*)$ index.php?resource=$1 [QSA,L]
