@@ -9,14 +9,16 @@ class PerfumesApiController {
     }
 
     // Trae todos los perfumes (opcionalmente filtrados)
-    public function getAll($request, $response) {
+    public function getAll($request, $response) { 
+         
         $filter = isset($request->query->filter) ? $request->query->filter : null;
         $order  = isset($request->query->order) ? $request->query->order : null;
 
         $allowedFields = ['sexo', 'duracion', 'precio', 'codigo', 'id_laboratorio'];
         $filters = [];
         $orders = [];
-
+var_dump("controller llega 1");
+        
         if ($filter) {
             $conditions = preg_split('/[;,]+/', $filter);
 
@@ -43,32 +45,44 @@ class PerfumesApiController {
                 $filters[$field] = $value;
             }
         }
+var_dump("controller llega 2");
+        
+    if ($order) {
+        $orderParts = preg_split('/[;,]+/', $order);
 
-        if ($order) {
-            $orderParts = preg_split('/[;,]+/', $order);
-
-            foreach ($orderParts as $part) {
-                if (!str_contains($part, ':')) {
-                    return $response->json(['error' => 'Formato de orden inválido. Use campo:asc|desc'], 400);
-                }
-
-                [$field, $dir] = explode(':', $part, 2);
-
-                $field = trim($field);
-                $dir   = strtolower(trim($dir));
-
-                if ($dir !== 'asc' && $dir !== 'desc') {
-                    return $response->json([
-                        'error' => "Dirección de orden inválida en '$part'. Use asc o desc."
-                    ], 400);
-                }
-                $orders[$field] = $dir;
+        foreach ($orderParts as $part) {
+            if (!str_contains($part, ':')) {
+                return $response->json(['error' => 'Formato de orden inválido. Use campo:asc|desc'], 400);
             }
-        }
 
-        $perfumes = $this->model->getAll($filters, $orders);
-        return $response->json($perfumes, 200);
+            [$field, $dir] = explode(':', $part, 2);
+
+            $field = trim($field);
+            $dir   = strtolower(trim($dir));
+
+            
+            if (!in_array($field, $allowedFields)) {
+                return $response->json([
+                    'error' => "El campo '$field' no se puede usar para ordenar",
+                    'permitidos' => $allowedFields
+                ], 400);
+            }
+
+            
+            if ($dir !== 'asc' && $dir !== 'desc') {
+                return $response->json([
+                    'error' => "Dirección de orden inválida en '$part'. Use asc o desc."
+                ], 400);
+            }
+
+            $orders[$field] = $dir;
+        }
+         
+       
     }
+     $perfumes = $this->model->getAll($filters, $orders);
+        return $response->json($perfumes, 200);
+}
 
 
     // Trae un perfume por su ID
