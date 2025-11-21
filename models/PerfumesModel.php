@@ -4,33 +4,31 @@ require_once __DIR__ . '/Model.php';
 class PerfumeModel extends Model {
 
     // Trae todos los perfumes con su laboratorio
-    public function getAll($filters = [], $order = []) {
-    $sql = "SELECT p.*, l.nombre AS laboratorio_nombre
-            FROM perfumes p
-            LEFT JOIN laboratorios l ON l.id = p.id_laboratorio";
-    $params = [];
+    public function getAll($filters = [], $orders = [])
+    {
+        $sql = "SELECT p.*, l.nombre AS laboratorio_nombre
+                FROM perfumes p
+                LEFT JOIN laboratorios l ON l.id = p.id_laboratorio";
 
-    if (!empty($filters)) {
-        $where = [];
-        foreach ($filters as $field => $value) {
-            $where[] = "p.$field = ?";
-            $params[] = $value;
+        $params = [];
+
+        if (!empty($filters)) {
+            $where = [];
+            foreach ($filters as $column => $value) {
+                $where[] = "$column = ?";
+                $params[] = $value;
+            }
+            $sql .= " WHERE " . implode(" AND ", $where);
         }
-        $sql .= " WHERE " . implode(' AND ', $where);
-    }
 
-    if (!empty($order)) {
-        $orderParts = [];
-        foreach ($order as $col => $dir) {
-            $orderParts[] = "$col " . strtoupper($dir);
+        if (!empty($orders)) {
+            $sql .= " ORDER BY " . implode(", ", $orders);
         }
-        $sql .= " ORDER BY " . implode(', ', $orderParts);
-    }
 
-    $query = $this->db->prepare($sql);
-    $query->execute($params);
-    return $query->fetchAll();
-}
+        $query = $this->db->prepare($sql);
+        $query->execute($params);
+        return $query->fetchAll();
+    }
     
     // Trae un perfume por su ID
     public function getById($id) {

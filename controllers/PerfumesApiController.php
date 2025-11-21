@@ -9,16 +9,23 @@ class PerfumesApiController {
     }
 
     // Trae todos los perfumes (opcionalmente filtrados)
-    public function getAll($request, $response) { 
-         
-        $filter = isset($request->query->filter) ? $request->query->filter : null;
-        $order  = isset($request->query->order) ? $request->query->order : null;
+    public function getAll($request, $response)
+    {
+        $filter = $request->query->filter ?? null;
+        $order  = $request->query->order ?? null;
 
-        $allowedFields = ['sexo', 'duracion', 'precio', 'codigo', 'id_laboratorio'];
+        // Campos válidos para filtro y orden
+        $allowedFields = [
+            'sexo' => 'p.sexo',
+            'duracion' => 'p.duracion',
+            'precio' => 'p.precio',
+            'codigo' => 'p.codigo',
+            'id_laboratorio' => 'p.id_laboratorio'
+        ];
+
         $filters = [];
-        $orders = [];
-var_dump("controller llega 1");
-        
+        $orders  = [];
+
         if ($filter) {
             $conditions = preg_split('/[;,]+/', $filter);
 
@@ -28,64 +35,56 @@ var_dump("controller llega 1");
                 }
 
                 [$field, $value] = explode('=', $condition, 2);
+
                 $field = trim($field);
                 $value = trim($value);
-
-                if (!in_array($field, $allowedFields)) {
-                    return $response->json([
-                        'error' => "El campo '$field' no se puede usar como filtro",
-                        'permitidos' => $allowedFields
-                    ], 400);
+                
+                // ahora para prevenir SQL Injection validamos el campo
+                if (!array_key_exists($field, $allowedFields)) {
+                    return $response->json(['error' => "Campo '$field' no permitido"], 400);
                 }
 
                 if ($value === '') {
                     return $response->json(['error' => 'El valor del filtro no puede estar vacío'], 400);
                 }
 
-                $filters[$field] = $value;
+                // esto dsp PDO lo manda parametrizado
+                $filters[$allowedFields[$field]] = $value;
             }
         }
-var_dump("controller llega 2");
-        
-    if ($order) {
-        $orderParts = preg_split('/[;,]+/', $order);
 
-        foreach ($orderParts as $part) {
-            if (!str_contains($part, ':')) {
-                return $response->json(['error' => 'Formato de orden inválido. Use campo:asc|desc'], 400);
+        if ($order) {
+            $parts = preg_split('/[;,]+/', $order);
+
+            foreach ($parts as $part) {
+                if (!str_contains($part, ':')) {
+                    return $response->json(['error' => 'Formato de orden inválido. Use campo:asc|desc'], 400);
+                }
+
+                [$field, $dir] = explode(':', $part, 2);
+
+                $field = trim($field);
+                $dir   = strtolower(trim($dir));
+
+                // lo mismo, vemos que el campo este entre lo permitido y dsp
+                // transformamos lo que puso el user por lo que manejamos internamente
+                // para evitar sql injection
+                if (!array_key_exists($field, $allowedFields)) {
+                    return $response->json(['error' => "Campo '$field' no permitido para ordenar"], 400);
+                }
+
+                if (!in_array($dir, ['asc', 'desc'])) {
+                    return $response->json(['error' => 'Dirección inválida, use asc o desc'], 400);
+                }
+
+                $orders[] = $allowedFields[$field] . " " . strtoupper($dir);
             }
-
-            [$field, $dir] = explode(':', $part, 2);
-
-            $field = trim($field);
-            $dir   = strtolower(trim($dir));
-
-            
-            if (!in_array($field, $allowedFields)) {
-                return $response->json([
-                    'error' => "El campo '$field' no se puede usar para ordenar",
-                    'permitidos' => $allowedFields
-                ], 400);
-            }
-
-            
-            if ($dir !== 'asc' && $dir !== 'desc') {
-                return $response->json([
-                    'error' => "Dirección de orden inválida en '$part'. Use asc o desc."
-                ], 400);
-            }
-
-            $orders[$field] = $dir;
         }
-         
-       
-    }
-     $perfumes = $this->model->getAll($filters, $orders);
+
+        $perfumes = $this->model->getAll($filters, $orders);
         return $response->json($perfumes, 200);
-}
+    }
 
-
-    // Trae un perfume por su ID
     public function get($request, $response) {
         $id = $request->params->id ?? null;
 
